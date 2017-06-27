@@ -241,36 +241,58 @@ function offerReceived(snapshot) {
     var snap = snapshot.val();
 
     // first thing: get the user local media!
-    
-    if (localTracks) {
-      console.log("localtracks", localTracks);
-      console.log("stopping usermedia tracks previously acquired");  // we don't want to end up with two sets of local usermedia
-      localTracks.forEach(function (track) {
-        track.stop();  
-      });
-    }
-    console.log("About to get local user nedia");
-    
-    // Get stream from user camera
-    navigator.mediaDevices.getUserMedia({video: { width: {max: 320}, height: {max: 240} }, audio: false})
-    .then(function(stream) {
-      // Store tracks and stream in globals to kill them when hanging up
-      localTracks = stream.getTracks();
-      console.log('assigned localTracks variable', localTracks);
-      localStream = stream; // we store localStream to add it to the pc2 later...
-      
-       // Attach stream to video element 
-      var video = document.getElementById('localVideo');
-      video.srcObject = localStream;
-      
-      // Now we can safely proceed to answer the offer
-      answerTheOffer(snap.localdescription);
-    }); 
+    bootbox.confirm({
+    title: `Accept Call from (idk)?`,
+      message: "Pressing Accept will start a video call with (idk)",
+      buttons: {
+          cancel: {
+              label: '<i class="fa fa-times"></i> Decline'
+          },
+          confirm: {
+              label: '<i class="fa fa-check"></i> Accept'
+          }
+      },
+      callback: function (result) {
+        if(result){
+          if (localTracks) {
+            console.log("localtracks", localTracks);
+            console.log("stopping usermedia tracks previously acquired");  // we don't want to end up with two sets of local usermedia
+            localTracks.forEach(function (track) {
+            track.stop();
+            });
+          }
+          console.log("About to get local user nedia");
+          // Get stream from user camera
+          navigator.mediaDevices.getUserMedia({video: { width: {max: 320}, height: {max: 240} }, audio: false})
+          .then(function(stream) {
+            // Store tracks and stream in globals to kill them when hanging up
+            localTracks = stream.getTracks();
+            console.log('assigned localTracks variable', localTracks);
+            localStream = stream; // we store localStream to add it to the pc2 later...
+
+             // Attach stream to video element
+            var video = document.getElementById('localVideo');
+            video.srcObject = localStream;
+
+            // Now we can safely proceed to answer the offer
+            answerTheOffer(snap.localdescription);
+          });
+        } else {
+          answerTheOffer(-1)
+        }
+      }
+    });
   }
 }
 
 function answerTheOffer(offerString) {
-  
+
+    if(offerString == -1){
+      console.log('Connection refused.')
+      var answerRef = firebase.database().ref(pathToSignaling + '/' + currentUser.uid + '/answers').push();
+      answerRef.set(-1);
+      firebase.database().ref(pathToSignaling + '/' + currentUser.uid + '/connection-status').set('disconnected')
+    }
     // Stop ICE listeners in case they were added before (we don't want several listeners to the same thing)
     firebase.database().ref(pathToSignaling + '/' + currentUser.uid + '/ice-to-answerer').off('child_added');
     // Add listener for ICE candidates from pc1
