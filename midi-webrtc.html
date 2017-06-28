@@ -1,0 +1,153 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>WebRTC p2p data</title>
+    <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+    <script
+      src="https://code.jquery.com/jquery-1.12.4.min.js"
+      integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ="
+      crossorigin="anonymous">
+    </script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"
+	    integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa"
+	    crossorigin="anonymous">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/3.6.6/firebase.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.5/handlebars.min.js"></script>
+    <script src="js/bootbox.min.js"></script>
+    <script src="js/validator.min.js"></script>
+    
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+
+</head>
+<body>
+  <nav class="navbar navbar-default">
+    <div class="container-fluid">
+      <div class="navbar-header">
+				<button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#myNavbar">
+				  <span class="icon-bar"></span>
+				  <span class="icon-bar"></span>
+				  <span class="icon-bar"></span>
+				</button>
+				<a href="#" class="navbar-brand"><strong>Video & MIDI Chat</strong></a>
+      </div>
+      <div class="collapse navbar-collapse" id="myNavbar">
+            <ul class="nav navbar-nav navbar-right">
+                <li class="dropdown">
+                    <a href="#" class="dropdown-toggle" id="midi-menu" data-toggle="dropdown">
+                        <strong>MIDI</strong>
+                        <span class="glyphicon glyphicon-chevron-down"></span>
+                    </a>
+                    <ul class="dropdown-menu">
+                      <li class="dropdown-header">MIDI In</li>
+                      <li><a href="#" id="midiin">Not connected</a></li>
+                      <li class="dropdown-header">MIDI Out</li>
+                      <li><a href="#" id="midiout">Not connected</a></li>
+                    </ul>
+                </li>
+                <li class="dropdown" id="user-menu">
+                </li>
+                <li><a href="#" id="logoutbutton" onclick="logMeOut()">Log out</a></li>
+            </ul>
+      </div> <!--- myNavbar -->
+    </div> <!-- container-fluid -->
+  </nav>
+	
+  <div class="container">
+    
+    <div id="login">
+      <h2>Log in</h2>
+      <div class="panel panel-default">
+	<div class="panel-body">
+	  <form data-toggle="validator" role="form">
+	    <div class="form-group">
+	      <label class="control-label" for="username">Email account:</label>
+		<input type="email" class="form-control" id="username" data-error="Email address is invalid" required>
+		<div class="help-block with-errors"></div>
+	    </div>
+	    <div class="form-group">
+	      <label class="control-label" data-minlength="6" for="password">Password:</label>
+		<input type="password" class="form-control" id="password" required>
+	    </div>
+	    <div class="form-group"> 
+		<button type="submit" id="loginButton" class="btn btn-primary">Log in</button>
+	    </div>
+	  </form>
+	</div>
+      </div>
+      <p><a href="#" class="btn btn-default" id="sign-up">Sign up</a>&nbsp;<a href="#" class="btn btn-warning" id="reset-password">Reset password</a></p>
+   
+    </div> 
+     
+
+    <div id="main">
+      <div class="row">
+				<div class="col-sm-6">
+					<video id="remoteVideo" width="100%" autoplay controls muted></video>
+				</div>
+				<div class="col-sm-6">
+					<video id="localVideo" class="localVideo" width="200" autoplay muted controls></video><br />
+					<button type="button" id="hangUp" class="btn btn-sm btn-danger">Hang up</button>
+				</div>
+      </div>
+      <div class="row">
+				<div class="col-sm-6">
+					<fieldset class="well">
+						<p class="head muted">
+							Chat window (active only if connected to a peer).
+						</p>
+						<div class="text-info" id="chatlog" style="height:250px; overflow:auto;">
+						</div>
+					</fieldset>
+					<form class="form-inline" onsubmit="return false;">
+						<div class="form-group">
+							<input type="text" class="form-control" id="messageTextBox" placeholder="Type your message here">
+							<button type="button" class="btn btn-default" id="sendMessageBtn" class="btn" onclick="sendMessage(); return false">Send message</button>	  
+						</div>
+					</form>
+					
+				</div>
+				<!-- div class="col-sm-4">
+					<fieldset class="well">
+						<p class="head muted">
+							Incoming MIDI log.
+						</p>
+						<div class="text-info" id="midilog" style="height:250px; overflow:auto;">
+						</div>
+					</fieldset>
+				</div -->
+
+      
+      <!-- List of online users -->
+
+				<div class="col-sm-6">
+					<fieldset class="well">
+						<p class="head muted">
+							Online users.
+						</p>
+						<div class="text-info" id="userlist" style="height: 250px; overflow:auto">
+						</div>
+					</fieldset>
+				</div>
+      </div>
+    </div>
+  </div>
+
+
+  
+<!--- Modals   -->
+  
+  <div id="modals"></div>
+
+
+  <script src="js/MIDISystem.js"></script>
+  <script src="js/userHandling.js"></script>
+  <script src="js/SpEvent.js"></script>
+  <script src="js/signaling-functions.js"></script>
+  <script src="js/User.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

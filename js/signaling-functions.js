@@ -187,6 +187,7 @@ function iceReceivedPc1(snapshot) {
 function answerListener(snapshot) {
   console.log('prelim answer', snapshot.val());
   if (snapshot.val()) {
+    console.log('answerListener: ', snapshot.val())
     bootbox.hideAll();
     var answer = JSON.parse(snapshot.val());
     if (answer != -1) { // The -1 was there when the answere had the option to reject. Not used anymore in this version
@@ -211,7 +212,8 @@ function answerListener(snapshot) {
       var update = {};
       update.offer = null;
       firebase.database().ref(pathToSignaling + '/' + receiverUid).update(update);
-      bootbox.alert("Call rejected");
+      bootbox.hideAll();
+      var rejectAlert = bootbox.alert("Call rejected");
     }
   }
 }
@@ -276,9 +278,14 @@ function offerReceived(snapshot) {
 
             // Now we can safely proceed to answer the offer
             answerTheOffer(snap.localdescription);
+            return
           });
         } else {
-          answerTheOffer(-1)
+          console.log('Connection refused.')
+          var answerRef = firebase.database().ref(pathToSignaling + '/' + currentUser.uid + '/answers').push();
+          answerRef.set(-1);
+          firebase.database().ref(pathToSignaling + '/' + currentUser.uid + '/connection-status').set('disconnected')
+          return
         }
       }
     });
@@ -287,12 +294,6 @@ function offerReceived(snapshot) {
 
 function answerTheOffer(offerString) {
 
-    if(offerString == -1){
-      console.log('Connection refused.')
-      var answerRef = firebase.database().ref(pathToSignaling + '/' + currentUser.uid + '/answers').push();
-      answerRef.set(-1);
-      firebase.database().ref(pathToSignaling + '/' + currentUser.uid + '/connection-status').set('disconnected')
-    }
     // Stop ICE listeners in case they were added before (we don't want several listeners to the same thing)
     firebase.database().ref(pathToSignaling + '/' + currentUser.uid + '/ice-to-answerer').off('child_added');
     // Add listener for ICE candidates from pc1
