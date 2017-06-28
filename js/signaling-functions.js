@@ -121,7 +121,7 @@ function createLocalOffer (uid) {
       // add the new offer to firebase. By pushing it, we actually keep previous offers (avoid overwriting old offers, in case they are not yet processed by Bob)
       var offerRef = firebase.database().ref(pathToSignaling + '/' + receiverUid + '/offers').push();
       descString = JSON.stringify(pc1.localDescription);
-      offerRef.set({localdescription: descString, offerer: currentUserInfo.nick});
+      offerRef.set({localdescription: descString, offerer: currentUser.uid, offererNick: currentUserInfo.nick});
       
       // Update Firebase connection status
       firebase.database().ref(pathToSignaling + '/' + receiverUid + '/connection-status').set('offer-sent');
@@ -239,13 +239,11 @@ var pc2=null,
 // Handler for when someone creates an offer to you in the firebase database. Listener is defined right after log in
 function offerReceived(snapshot) {
   if (snapshot.val()) {
-  
     var snap = snapshot.val();
-
     // first thing: get the user local media!
     bootbox.confirm({
-    title: `Accept Call from (idk)?`,
-      message: "Pressing Accept will start a video call with (idk)",
+    title: `Accept Call from ${snap.offererNick}?`,
+      message: `Pressing Accept will start a video call with ${snap.offererNick}.`,
       buttons: {
           cancel: {
               label: '<i class="fa fa-times"></i> Decline'
