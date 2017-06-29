@@ -84,12 +84,12 @@ function createLocalOffer (uid) {
   
 
   // Get camera stream for offerer (local video)
+  // TODO: Handling for no media
   console.log("About to get local user nedia");
   navigator.mediaDevices.getUserMedia({video: { width: {max: 320}, height: {max: 240} }, audio: false})
   .then(function (stream) {
     localTracks = stream.getTracks();
     localStream = stream;
-    negotiate = true;
     var video = document.getElementById('localVideo');
     video.srcObject = stream;
     video.play();
@@ -135,6 +135,87 @@ function createLocalOffer (uid) {
     .catch(function (error) {
       console.log('Error somewhere in chain: ' + error);
     });
+  }).catch(function(error){
+    //Catch For Failed Media Stream. Need to notify the user, then decide whether to set up a no video stream.
+
+    //bootbox that handles user decision on 'no video' error
+    bootbox.confirm({
+      title: `No Video Connected`,
+        message: `You don't seem to have a video camera enabled. Press continue to start chat with Audio and Midi only.`,
+        buttons: {
+            cancel: {
+                label: '<i class="fa fa-times"></i> Cancel'
+            },
+            confirm: {
+                label: '<i class="fa fa-check"></i> Continue'
+            }
+        },
+        callback: function (result) {
+          if(result){
+            //Result == True, setup audio-only datastream
+            console.log('Starting no video RTC connection: Result: ', result)
+
+            navigator.mediaDevices.getUserMedia({video: false, audio: true}) //TODO: edit audo-only properties as needed
+            .then(function (stream) {
+              console.log('Tracks list: \n', stream.getTracks());
+              localTracks = stream.getTracks();
+              localStream = stream;
+              var audio = document.getElementById('localVideo'); //You can do an audio-only stream on a video element
+              audio.srcObject = stream;
+              audio.play();
+
+              // Status Setup
+              myStatus = 0; // global variable
+              var update = {};
+              update[pathToOnline + "/" + currentUser.uid +"/status"] = 0;
+              firebase.database().ref().update(update);
+
+              // ICE stuff
+              if (typeof pc1.addTrack !== 'undefined') {
+                // Firefox already supports addTrack. Chrome not yet
+                  stream.getTracks().forEach(track => pc1.addTrack(track, stream));
+                  console.log("added stream to pc1:", stream);
+              } else {
+                // Adding the stream will trigger a negotiationneeded event
+                pc1.addStream(stream);
+                console.log("added stream to pc1:", stream);
+              }
+              pc1.createOffer()
+              .then(function (desc) {
+                 // Limit bandwidth
+                 console.log("pc1 (AUDIO ONLY) created offer with description", desc)
+                desc.sdp = updateBandwidthRestriction(desc.sdp, 250);
+                return pc1.setLocalDescription(desc);
+              })
+              .then (function () {
+                console.log('created (A-Only) local offer', pc1.localDescription);
+                // add the new offer to firebase. By pushing it, we actually keep previous offers (avoid overwriting old offers, in case they are not yet processed by Bob)
+                var offerRef = firebase.database().ref(pathToSignaling + '/' + receiverUid + '/offers').push();
+                descString = JSON.stringify(pc1.localDescription);
+                offerRef.set({localdescription: descString, offerer: currentUser.uid, offererNick: currentUserInfo.nick});
+
+                // Update Firebase connection status
+                firebase.database().ref(pathToSignaling + '/' + receiverUid + '/connection-status').set('offer-sent');
+
+                // Create event listener for hangup button for the offerer
+                $('#hangUp').on("click",function(){
+                  $(this).off('click');
+                  firebase.database().ref(pathToSignaling + '/' + receiverUid + '/connection-status').set('disconnected');
+                });
+              })
+              .catch(function (error) {
+                console.log('Error somewhere in audio-only chain: ' + error);
+              });
+
+            });
+          }else{
+            // Result == False, no need to do anything else. Return.
+            console.log('Canceled connection setup. Result: ', result)
+            return
+          }
+      }
+    });
+
   });
 }
 
@@ -213,7 +294,7 @@ function answerListener(snapshot) {
       update.offer = null;
       firebase.database().ref(pathToSignaling + '/' + receiverUid).update(update);
       bootbox.hideAll();
-      var rejectAlert = bootbox.alert("Call rejected");
+      var rejectAlert = bootbox.alert("Call rejected.");
     }
   }
 }
@@ -243,7 +324,7 @@ function offerReceived(snapshot) {
     // first thing: get the user local media!
     bootbox.confirm({
     title: `Accept Call from ${snap.offererNick}?`,
-      message: `Pressing Accept will start a video call with ${snap.offererNick}.`,
+      message: `Clicking accept will start a video call with ${snap.offererNick}.`,
       buttons: {
           cancel: {
               label: '<i class="fa fa-times"></i> Decline'
@@ -277,6 +358,44 @@ function offerReceived(snapshot) {
             // Now we can safely proceed to answer the offer
             answerTheOffer(snap.localdescription);
             return
+          }).catch(function (error){
+            //Return Audio-only stream.
+            bootbox.confirm({
+              title: `No Video Connected`,
+              message: `You don't seem to have a video camera enabled. Press continue to start chat with Audio and Midi only.`,
+              buttons: {
+                  cancel: {
+                      label: '<i class="fa fa-times"></i> Cancel'
+                  },
+                  confirm: {
+                      label: '<i class="fa fa-check"></i> Continue'
+                  }
+              },
+              callback: function (result) {
+                if(result){
+                  navigator.mediaDevices.getUserMedia({video: false, audio: true})
+                  .then(function(stream) {
+                    // Store tracks and stream in globals to kill them when hanging up
+                    localTracks = stream.getTracks();
+                    console.log('assigned localTracks variable (A-Only) ', localTracks);
+                    localStream = stream;
+                     // Attach audio stream to video element
+                    var audio = document.getElementById('localVideo');
+                    audio.srcObject = localStream;
+
+                      // Now we can safely proceed to answer the offer
+                    answerTheOffer(snap.localdescription);
+                    return
+                  })
+                } else { //Audio only declined, hang up
+                  console.log('Connection refused.')
+                  var answerRef = firebase.database().ref(pathToSignaling + '/' + currentUser.uid + '/answers').push();
+                  answerRef.set(-1);
+                  firebase.database().ref(pathToSignaling + '/' + currentUser.uid + '/connection-status').set('disconnected')
+                  return
+                }
+              }
+            });
           });
         } else {
           console.log('Connection refused.')
