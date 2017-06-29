@@ -86,7 +86,7 @@ function createLocalOffer (uid) {
   // Get camera stream for offerer (local video)
   // TODO: Handling for no media
   console.log("About to get local user nedia");
-  navigator.mediaDevices.getUserMedia({video: { width: {max: 320}, height: {max: 240} }, audio: false})
+  navigator.mediaDevices.getUserMedia({video: { width: {max: 320}, height: {max: 240} }, audio: true})
   .then(function (stream) {
     localTracks = stream.getTracks();
     localStream = stream;
@@ -344,7 +344,7 @@ function offerReceived(snapshot) {
           }
           console.log("About to get local user nedia");
           // Get stream from user camera
-          navigator.mediaDevices.getUserMedia({video: { width: {max: 320}, height: {max: 240} }, audio: false})
+          navigator.mediaDevices.getUserMedia({video: { width: {max: 320}, height: {max: 240} }, audio: true})
           .then(function(stream) {
             // Store tracks and stream in globals to kill them when hanging up
             localTracks = stream.getTracks();
@@ -365,7 +365,7 @@ function offerReceived(snapshot) {
               message: `You don't seem to have a video camera enabled. Press continue to start chat with Audio and Midi only.`,
               buttons: {
                   cancel: {
-                      label: '<i class="fa fa-times"></i> Cancel'
+                      label: '<i class="fa fa-times"></i> Reject Call'
                   },
                   confirm: {
                       label: '<i class="fa fa-check"></i> Continue'
