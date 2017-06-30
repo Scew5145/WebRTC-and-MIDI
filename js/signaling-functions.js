@@ -84,7 +84,6 @@ function createLocalOffer (uid) {
   
 
   // Get camera stream for offerer (local video)
-  // TODO: Handling for no media
   console.log("About to get local user nedia");
   navigator.mediaDevices.getUserMedia({video: { width: {max: 320}, height: {max: 240} }, audio: true})
   .then(function (stream) {
@@ -207,6 +206,12 @@ function createLocalOffer (uid) {
                 console.log('Error somewhere in audio-only chain: ' + error);
               });
 
+            }).catch(function(error){
+              bootbox.hideAll();
+              bootbox.alert({title: "Stream Establishment Failure",
+              message: "Couldn't create Audio-Only stream. Check to make sure your microphone is enabled."
+              });
+              return
             });
           }else{
             // Result == False, no need to do anything else. Return.
@@ -288,7 +293,7 @@ function answerListener(snapshot) {
       })
       .catch (function(error) {console.log("Problem setting the remote description for PC1 " + error);});
     } else {
-      // call rejected. This is not an option anymore. DELETE!
+      // Call rejected.
       firebase.database().ref(pathToSignaling+'/'+receiverUid+'/answer').off();
       var update = {};
       update.offer = null;
@@ -386,7 +391,18 @@ function offerReceived(snapshot) {
                       // Now we can safely proceed to answer the offer
                     answerTheOffer(snap.localdescription);
                     return
-                  })
+                  }).catch(function(error){
+                    //If audio stream Fails, notify the local user and hang up.
+                    bootbox.hideAll();
+                    bootbox.alert({
+                    title: "Stream Establishment Failure",
+                    message: "Couldn't create Audio-Only stream. Check to make sure your microphone is enabled."
+                    });
+                    var answerRef = firebase.database().ref(pathToSignaling + '/' + currentUser.uid + '/answers').push();
+                    answerRef.set(-1);
+                    firebase.database().ref(pathToSignaling + '/' + currentUser.uid + '/connection-status').set('disconnected')
+                    return
+                  });
                 } else { //Audio only declined, hang up
                   console.log('Connection refused.')
                   var answerRef = firebase.database().ref(pathToSignaling + '/' + currentUser.uid + '/answers').push();

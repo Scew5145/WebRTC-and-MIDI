@@ -1,0 +1,28 @@
+* {
+  box-sizing: border-box;
+}
+
+.video-container {
+  max-height: 350px;
+  max-width: 700px;
+  padding-top: 0px;
+  padding-bottom: 50.1%;
+  margin-bottom: 10px;
+  position: relative;
+  overflow: hidden;
+  background-color: black;
+}
+.remoteVideo {
+  width: 100%;
+  height: 100%;
+  border:1px solid blue;
+  position: absolute;
+}
+.localVideo {
+  width: 25%;
+  height: auto;
+  border:1px solid orange;
+  float: left;
+  position: absolute;
+  background-color: #afb7ba;
+}
