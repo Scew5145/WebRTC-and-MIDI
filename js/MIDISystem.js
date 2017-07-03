@@ -47,7 +47,7 @@ function MidiSystem(midiAccess) {
     console.log("MIDI State Change on port: "+event.port);
     console.log("MIDI State Change state: "+event.port.state);
     _this.stateChange.notify(event); // receivers need to check event.port.type (input, output)
-                                  //and event.port.state (when state changes, something got disconnected 
+                                  //and event.port.state (when state changes, something got disconnected
   };
   
   this.init= function() {

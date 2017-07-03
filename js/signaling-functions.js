@@ -1,6 +1,6 @@
 // Global variables
 
-var receiverUid; // stores the uid of Bob, the party receiving the offer. This global is ONLY used if you are Alice, the offerer 
+var receiverUid; // stores the uid of Bob, the party receiving the offer. This global is ONLY used if you are Alice, the offerer
 
 // WebRTC variables
 var cfg = {"iceServers": [
@@ -12,7 +12,11 @@ var cfg = {"iceServers": [
           ]}
 
 var pc1=null ,  dc1 = null;
-          
+
+//Controls the auto-mute feature. TODO: Setup button linked to variable
+var autoMuteDuringMidi = true;
+
+
 /* THIS IS ALICE, THE CALLER/SENDER */
 var localTracks, localStream;
 
@@ -20,6 +24,9 @@ var localTracks, localStream;
 // Since the same JS file contains code for both sides of the connection,
 // activedc tracks which of the two possible datachannel variables we're using.
 var activedc;
+
+
+
 
 // var sdpConstraints = {
 //   optional: [],
@@ -266,6 +273,7 @@ function createLocalOffer (uid) {
             }else{
               // Result == False, no need to do anything else. Return.
               console.log('Canceled connection setup. Result: ', result)
+              bootbox.hideAll();
               return
             }
         }
@@ -276,6 +284,7 @@ function createLocalOffer (uid) {
 
 // Sets up a data channel to Bob
 function setupDC1 () {
+  var pressedNotes = new Object();
   console.log("About to set up data channel");
   try {
     dc1 = pc1.createDataChannel('test', {reliable: false});
@@ -293,7 +302,29 @@ function setupDC1 () {
         // Scroll chat text area to the bottom on new input.
         $('#chatlog').scrollTop($('#chatlog')[0].scrollHeight);
       } else {
-        midisystem.selectedMidiOutput.send([data.message[0], data.message[1], data.message[2]]);
+        if(autoMuteDuringMidi){
+          //Auto-Mute feature. If the message received is an on, disable getAudioTracks.
+          if(data.message[0] == 144){
+            pressedNotes[data.message[1]] = null
+            // Setting values in pressedNotes to null to take up as little space as possible.
+            // We're only going to be checking to see if there's keys in the object, so the value doesn't matter. null could be 'poo' or anything else.
+          }else if(data.message[0] == 128 || data.message[2] == 0){
+            delete pressedNotes[data.message[1]]
+          }
+          if(Object.keys(pressedNotes).length === 0){
+            remoteVideo.srcObject.getAudioTracks()[0].enabled = true;
+            console.log('nothing pressed ', pressedNotes)
+          }else{
+            remoteVideo.srcObject.getAudioTracks()[0].enabled = false;
+            console.log('Stuff Happening ', pressedNotes)
+          }
+        }
+
+        if(midisystem.selectedMidiOutput['connection']){
+          midisystem.selectedMidiOutput.send([data.message[0], data.message[1], data.message[2]]);
+        }else{
+          console.log('No midi output.')
+        }
       }
     };
   } catch (e) { console.warn('No data channel (pc1)', e); }
@@ -594,8 +625,11 @@ function iceReceivedPc2(snapshot) {
   .catch(function(error) {console.log("error when adding ice pc2", error);});
 }
 
+//Using an object to store pressed keys rather than an array to get a O(1) avg case rather than an O(~n)
+
 function handleOnDataChannel (e) {
   var datachannel = e.channel || e; // Chrome sends event, FF sends raw channel
+  var pressedNotes = new Object();
   console.log('Received datachannel (pc2)', e);
   dc2 = datachannel;
   activedc = dc2;
@@ -609,7 +643,30 @@ function handleOnDataChannel (e) {
       // Scroll chat text area to the bottom on new input.
       $('#chatlog').scrollTop($('#chatlog')[0].scrollHeight);
     } else { // we got a midi message!
-      midisystem.selectedMidiOutput.send([data.message[0], data.message[1], data.message[2]]);
+
+      if(autoMuteDuringMidi){
+        //Auto-Mute feature. If the message received is an on, disable getAudioTracks.
+        if(data.message[0] == 144){
+          pressedNotes[data.message[1]] = null
+          // Setting values in pressedNotes to null to take up as little space as possible.
+          // We're only going to be checking to see if there's keys in the object, so the value doesn't matter. null could be 'poo' or anything else.
+        }else if(data.message[0] == 128 || data.message[2] == 0){
+          delete pressedNotes[data.message[1]]
+        }
+        if(Object.keys(pressedNotes).length === 0){
+          console.log('nothing pressed ', pressedNotes)
+          remoteVideo.srcObject.getAudioTracks()[0].enabled = true;
+        }else{
+          console.log('stuff happening ', pressedNotes)
+          remoteVideo.srcObject.getAudioTracks()[0].enabled = false;
+        }
+      }
+
+      if(midisystem.selectedMidiOutput['connection']){ //connection will be undefined if disconnected
+        midisystem.selectedMidiOutput.send([data.message[0], data.message[1], data.message[2]]);
+      }else{
+        console.log('No midi output.')
+      }
     }    
   };
 }

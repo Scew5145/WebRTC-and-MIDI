@@ -29,11 +29,15 @@ navigator.requestMIDIAccess && navigator.requestMIDIAccess().then(
 // Handler for incoming midi messages
 function onMidiMessage(receivedEvent) {
   if ((receivedEvent.data[0] & 0xF0) != 0xF0) { // filter out SysEx messages, Active Sensing and other undesired messages.
-    // console.log("Sent midi: " + JSON.stringify(receivedEvent.data));
-    activedc.send(JSON.stringify({
-      message: receivedEvent.data,
-      type: "midi"
-    }));
+    console.log("Sent midi: " + JSON.stringify(receivedEvent.data));
+    if(activedc != undefined){ //If a datachannel hasn't been opened yet, variable will be undefined.
+      if(activedc.readyState == 'open'){ //If one HAS been opened before but is currently not connected, readyState != open.
+        activedc.send(JSON.stringify({
+          message: receivedEvent.data,
+          type: "midi"
+        }));
+      }
+    }
   }
 }
 
@@ -284,6 +288,23 @@ firebase.auth().onAuthStateChanged(function(user) {
         console.log("Current user " + JSON.stringify(currentUserInfo));
       }
     });
+
+    //TODO: Properly set up automute option
+    //Auto-Mute Button listener
+    /*
+    var autoMuteDuringMidi = true;
+    console.log($('#midiAutoMute'))
+    $('#midiAutoMute').on("click",function(){
+      autoMuteDuringMidi = !autoMuteDuringMidi
+      if(autoMuteDuringMidi){
+        $(this).text('true')
+        //$(this).addClass("disabled");
+      }else{
+        $(this).text('false')
+        //$(this).removeClass("disabled")
+      }
+      console.log(autoMuteDuringMidi)
+    });*/
 
 
 
